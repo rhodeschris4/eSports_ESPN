@@ -1,0 +1,445 @@
+# eSports Live Tournament Platform - Software Specification
+
+## 1. Project Overview
+
+### 1.1 Vision Statement
+Create a comprehensive eSports platform that serves as the "ESPN of eSports" - a centralized hub for live tournament viewing, match scheduling, team information, and real-time statistics across multiple competitive gaming titles.
+
+### 1.2 Initial Scope
+**Phase 1 (MVP):** Counter-Strike 2 tournament aggregation and live match viewing platform with modern eSports-themed UI.
+
+### 1.3 Future Roadmap
+- Multi-game support (Valorant, League of Legends, Dota 2, etc.)
+- Real-time match statistics and live data feeds
+- Player profiles and comprehensive statistics
+- Team analytics and historical performance data
+- User accounts and personalized dashboards
+- Mobile applications
+
+## 2. Technical Architecture
+
+### 2.1 Technology Stack
+
+**Frontend:**
+- Next.js 14+ (App Router)
+- TypeScript
+- Tailwind CSS for styling
+- Framer Motion for animations
+- React Query/TanStack Query for data fetching
+- Zustand for state management
+
+**Backend:**
+- Next.js API routes
+- Node.js runtime
+- Prisma ORM
+- PostgreSQL database
+- Redis for caching
+
+**Data Sources:**
+- HLTV.org web scraping
+- HLTV API (if available)
+- Steam API integration
+- Twitch API for stream integration
+
+**Deployment:**
+- Vercel (recommended for Next.js)
+- Supabase or Railway for database hosting
+- Upstash Redis for caching layer
+
+### 2.2 System Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Scraper   │    │   API Routes    │    │   Frontend UI   │
+│   (HLTV Data)   │───▶│   (Next.js)     │───▶│   (React/Next)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PostgreSQL    │    │   Redis Cache   │    │   Streaming     │
+│   Database      │    │                 │    │   Integration   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## 3. Data Model
+
+### 3.1 Core Entities
+
+**Tournament**
+```typescript
+interface Tournament {
+  id: string
+  name: string
+  game: 'CS2' | 'VALORANT' | 'LOL' // extensible
+  startDate: Date
+  endDate: Date
+  prizePool?: number
+  location?: string
+  status: 'upcoming' | 'live' | 'completed'
+  logoUrl?: string
+  streamUrls: StreamLink[]
+  teams: Team[]
+  matches: Match[]
+}
+```
+
+**Match**
+```typescript
+interface Match {
+  id: string
+  tournamentId: string
+  team1: Team
+  team2: Team
+  scheduledTime: Date
+  status: 'scheduled' | 'live' | 'completed'
+  score?: {
+    team1Score: number
+    team2Score: number
+  }
+  streamUrls: StreamLink[]
+  matchType: 'bo1' | 'bo3' | 'bo5'
+  round?: string // "Quarter-Final", "Semi-Final", etc.
+}
+```
+
+**Team**
+```typescript
+interface Team {
+  id: string
+  name: string
+  logoUrl?: string
+  country: string
+  players: Player[]
+  ranking?: number
+  recentForm?: MatchResult[]
+}
+```
+
+**Player**
+```typescript
+interface Player {
+  id: string
+  nickname: string
+  realName?: string
+  country: string
+  teamId: string
+  photoUrl?: string
+  role?: string
+  stats?: PlayerStats
+}
+```
+
+**StreamLink**
+```typescript
+interface StreamLink {
+  platform: 'twitch' | 'youtube' | 'other'
+  url: string
+  language: string
+  viewerCount?: number
+  isOfficial: boolean
+}
+```
+
+## 4. API Specifications
+
+### 4.1 Core Endpoints
+
+**Tournaments**
+- `GET /api/tournaments` - List all tournaments with filters
+- `GET /api/tournaments/[id]` - Get tournament details
+- `GET /api/tournaments/live` - Get currently live tournaments
+
+**Matches**
+- `GET /api/matches` - List matches with filters (date range, team, tournament)
+- `GET /api/matches/[id]` - Get match details
+- `GET /api/matches/live` - Get currently live matches
+- `GET /api/matches/upcoming` - Get upcoming matches (next 24-48 hours)
+
+**Teams**
+- `GET /api/teams` - List all teams
+- `GET /api/teams/[id]` - Get team details with recent matches
+
+### 4.2 Data Fetching Strategy
+
+**Real-time Updates:**
+- WebSocket connections for live match updates
+- Server-Sent Events for match status changes
+- Polling every 30 seconds for live matches
+- Caching strategy with 5-minute TTL for static data
+
+## 5. User Interface Design
+
+### 5.1 Design System & Visual Identity
+
+**Color Palette:**
+- Primary: Electric Blue (#00D4FF)
+- Secondary: Neon Green (#39FF14)
+- Accent: Purple (#8B5CF6)
+- Dark Background: Deep Black (#0A0A0A)
+- Surface: Dark Gray (#1A1A1A)
+- Light Surface: Medium Gray (#2A2A2A)
+- Text Primary: Pure White (#FFFFFF)
+- Text Secondary: Light Gray (#A1A1AA)
+- Success: Green (#10B981)
+- Warning: Orange (#F59E0B)
+- Error: Red (#EF4444)
+
+**Typography:**
+- Headers: Inter or Roboto (Bold, 700-900 weight)
+- Body: Inter or System UI (Regular, 400-500 weight)
+- Accent/Gaming: Orbitron or similar futuristic font for special elements
+
+**Geometric Design Elements:**
+- Sharp, angular containers with beveled edges
+- Hexagonal elements for team logos and match cards
+- Diagonal cuts and asymmetrical layouts
+- Glowing borders and neon accent lines
+- Subtle grid patterns and circuit-board inspired backgrounds
+
+### 5.2 Component Library
+
+**Core Components:**
+- `MatchCard` - Displays upcoming/live match information
+- `TournamentCard` - Tournament overview with key details
+- `TeamCard` - Team information with logo and recent form
+- `LiveIndicator` - Animated component for live status
+- `StreamButton` - Watch live button with platform integration
+- `CountdownTimer` - Time until match starts
+- `ScoreDisplay` - Live score with team information
+- `NavigationBar` - Game selection and main navigation
+
+### 5.3 Page Layouts
+
+**Homepage Layout:**
+```
+┌─────────────────────────────────────────────────┐
+│ Header (Logo, Game Selector, Navigation)        │
+├─────────────────────────────────────────────────┤
+│ Hero Section (Featured Live Matches)            │
+├─────────────────────────────────────────────────┤
+│ Live Matches Grid                               │
+├─────────────────────────────────────────────────┤
+│ Upcoming Matches (Next 24h)                    │
+├─────────────────────────────────────────────────┤
+│ Tournament Highlights                           │
+└─────────────────────────────────────────────────┘
+```
+
+**Match Detail Layout:**
+```
+┌─────────────────────────────────────────────────┐
+│ Match Header (Teams, Score, Status)             │
+├─────────────────┬───────────────────────────────┤
+│ Team 1 Info     │ Team 2 Info                   │
+├─────────────────┴───────────────────────────────┤
+│ Stream Options (Multiple Platforms)            │
+├─────────────────────────────────────────────────┤
+│ Match Statistics (if live/completed)           │
+└─────────────────────────────────────────────────┘
+```
+
+## 6. Web Scraping Strategy
+
+### 6.1 HLTV Integration
+
+**Target Data Points:**
+- Tournament listings and details
+- Match schedules and results
+- Team information and rankings
+- Player statistics
+- Live match status
+- Stream links
+
+**Scraping Approach:**
+- Respectful scraping with appropriate delays (2-3 seconds between requests)
+- User-Agent rotation to avoid detection
+- Proxy rotation for high-volume scraping
+- Error handling and retry logic
+- Data validation and cleaning
+
+**Implementation:**
+```javascript
+// Example scraping service structure
+class HLTVScraper {
+  async getTournaments(): Promise<Tournament[]>
+  async getMatches(dateRange?: DateRange): Promise<Match[]>
+  async getLiveMatches(): Promise<Match[]>
+  async getTeamInfo(teamId: string): Promise<Team>
+  async getMatchDetails(matchId: string): Promise<MatchDetails>
+}
+```
+
+### 6.2 Data Refresh Strategy
+
+**Scheduled Jobs:**
+- Tournament data: Every 6 hours
+- Match schedules: Every 2 hours
+- Live match status: Every 30 seconds
+- Team information: Daily
+- Player statistics: Daily
+
+## 7. Performance Requirements
+
+### 7.1 Performance Targets
+
+**Load Times:**
+- Initial page load: < 2 seconds
+- Route transitions: < 500ms
+- API responses: < 200ms (cached), < 1s (fresh data)
+
+**Optimization Strategies:**
+- Image optimization with Next.js Image component
+- Code splitting and lazy loading
+- Redis caching for frequently accessed data
+- CDN for static assets
+- Database query optimization with proper indexing
+
+### 7.2 Scalability Considerations
+
+**Horizontal Scaling:**
+- Stateless API design
+- Database connection pooling
+- Redis cluster for cache scaling
+- Load balancing for multiple instances
+
+## 8. Security & Compliance
+
+### 8.1 Security Measures
+
+**Data Protection:**
+- HTTPS enforcement
+- API rate limiting
+- Input validation and sanitization
+- SQL injection prevention with Prisma
+- XSS protection
+
+**Scraping Ethics:**
+- robots.txt compliance
+- Reasonable request rates
+- Proper attribution of data sources
+- Terms of service compliance
+
+## 9. Development Phases
+
+### 9.1 Phase 1 (MVP) - 4-6 weeks
+
+**Week 1-2: Foundation**
+- Project setup and development environment
+- Database schema and API structure
+- Basic HLTV scraping implementation
+- Core component library
+
+**Week 3-4: Core Features**
+- Tournament and match listing pages
+- Live match detection and display
+- Stream integration
+- Basic responsive design
+
+**Week 5-6: Polish & Deploy**
+- UI/UX refinement
+- Performance optimization
+- Testing and bug fixes
+- Production deployment
+
+### 9.2 Phase 2 (Enhanced Features) - 3-4 weeks
+
+- Real-time match statistics
+- Player and team detail pages
+- Advanced filtering and search
+- User preferences and bookmarking
+
+### 9.3 Phase 3 (Multi-Game Support) - 4-6 weeks
+
+- Valorant integration
+- League of Legends support
+- Unified game selection interface
+- Cross-game tournament calendar
+
+## 10. Testing Strategy
+
+### 10.1 Testing Approach
+
+**Unit Testing:**
+- Jest for utility functions
+- React Testing Library for components
+- API endpoint testing
+
+**Integration Testing:**
+- Database operations
+- Scraping service reliability
+- API integration tests
+
+**End-to-End Testing:**
+- Playwright for critical user journeys
+- Mobile responsiveness testing
+- Cross-browser compatibility
+
+## 11. Monitoring & Analytics
+
+### 11.1 Monitoring Requirements
+
+**Application Monitoring:**
+- Vercel Analytics for performance
+- Error tracking with Sentry
+- Uptime monitoring for scraping services
+
+**Business Metrics:**
+- Page views and user engagement
+- Most popular tournaments/matches
+- Stream click-through rates
+- User retention metrics
+
+## 12. Content Management
+
+### 12.1 Data Quality
+
+**Validation Rules:**
+- Match time validation
+- Team name consistency
+- Stream URL verification
+- Tournament status accuracy
+
+**Content Moderation:**
+- Automated content filtering
+- Manual review process for featured content
+- Community reporting system (future)
+
+## 13. Legal Considerations
+
+### 13.1 Compliance Requirements
+
+**Data Usage:**
+- Fair use of publicly available data
+- Proper attribution to data sources
+- Terms of service compliance
+- DMCA compliance procedures
+- Privacy policy for user data (future phases)
+
+**Intellectual Property:**
+- Team logos and tournament branding usage rights
+- Stream embedding permissions
+- API terms of service compliance
+
+---
+
+## Development Team Roles
+
+**Full-Stack Developer:**
+- Next.js application development
+- API implementation
+- Database design and optimization
+- Web scraping implementation
+
+**UI/UX Designer:**
+- eSports-themed design system
+- Component design and prototyping
+- User experience optimization
+- Mobile-responsive design
+
+**DevOps Engineer (Optional):**
+- Deployment pipeline setup
+- Performance monitoring
+- Database administration
+- Scaling infrastructure
+
+This specification provides a comprehensive roadmap for building a professional eSports tournament platform. The modular architecture allows for iterative development while maintaining code quality and scalability for future enhancements.
