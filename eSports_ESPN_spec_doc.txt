@@ -443,3 +443,8 @@ class HLTVScraper {
 - Scaling infrastructure
 
 This specification provides a comprehensive roadmap for building a professional eSports tournament platform. The modular architecture allows for iterative development while maintaining code quality and scalability for future enhancements.
+
+
+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
+Add more advanced UI polish (animations, responsive tweaks, etc.).
+Add navigation links to the detail pages for better UX.

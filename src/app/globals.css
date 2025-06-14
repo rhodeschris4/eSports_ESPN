@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body, .text-default, .text, .text-base, .text-light, .text-white {
+  color: #fff !important;
+}
+
+/* Remove or override any dark text color classes */
+.text-gray-700, .text-gray-500, .text-gray-400, .text-blue-900, .text-purple-900, .text-yellow-500 {
+  color: #fff !important;
+}
+
+body {
+  background: #0a0a12 !important;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.geometric-card {
+  clip-path: polygon(0 0, 92% 0, 100% 12%, 100% 100%, 8% 100%, 0 88%);
+}
+
+.bg-surface {
+  background-color: #181828 !important;
+}
+
+.bg-dark {
+  background-color: #0a0a12 !important;
+}
+
+/* High-contrast, solid, geometric eSports palette */
+.bg-blue-700 { background-color: #0033a0 !important; }
+.text-blue-900 { color: #001a33 !important; }
+.border-blue-700 { border-color: #0033a0 !important; }
+
+.bg-yellow-400 { background-color: #ffe600 !important; }
+.text-yellow-500 { color: #ffb800 !important; }
+.border-yellow-400 { border-color: #ffe600 !important; }
+
+.bg-purple-700 { background-color: #a259ff !important; }
+.text-purple-900 { color: #2a003a !important; }
+.border-purple-700 { border-color: #a259ff !important; }
+
+/* Card border and shadow reset for sharp look */
+.shadow-none { box-shadow: none !important; }
+
+/* Geometric border utility */
+.border-geometric {
+  border: 2px solid #ffe600 !important; /* default accent, can be overridden */
+  /* For now, border follows the outer edge, since CSS can't outline a clip-path directly. */
+}
+
+.bg-orange-600 { background-color: #ff7a00 !important; }
+.text-orange-300 { color: #ffd7b3 !important; }
+.border-orange-600 { border-color: #ff7a00 !important; }
+
+.bg-red-700 { background-color: #e10600 !important; }
+.text-red-300 { color: #ffd7d7 !important; }
+.border-red-700 { border-color: #e10600 !important; }
+
+.bg-purple-700 { background-color: #a259ff !important; }
+.text-purple-200 { color: #f3e6ff !important; }
+.border-purple-700 { border-color: #a259ff !important; }
+
+/* Geometric outline using SVG background - remove white stroke */
+.geometric-outline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 0.75rem;
+  mask-image: url('data:image/svg+xml;utf8,<svg width="100%25" height="100%25" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 92,0 100,12 100,100 8,100 0,88" fill="none" stroke="black" stroke-width="2"/></svg>');
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg width="100%25" height="100%25" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 92,0 100,12 100,100 8,100 0,88" fill="none" stroke="black" stroke-width="2"/></svg>');
+  background: inherit;
+  /* border: 2px solid currentColor; */
+  z-index: 2;
+}
