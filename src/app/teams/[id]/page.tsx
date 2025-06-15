@@ -6,11 +6,21 @@ import MatchCard from '../../../components/MatchCard';
 import NavigationBar from '../../../components/NavigationBar';
 import Link from 'next/link';
 import { motion } from "framer-motion";
+import Modal from '../../../components/Modal';
+import ReactDOM from 'react-dom';
 
 export default function TeamDetailPage() {
   const { id } = useParams();
   const [team, setTeam] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [filteredTeams, setFilteredTeams] = useState<any[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<any>(null);
+  const [loadingCompare, setLoadingCompare] = useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{left: number, top: number, width: number}>({left: 0, top: 0, width: 0});
 
   useEffect(() => {
     async function fetchTeam() {
@@ -21,6 +31,43 @@ export default function TeamDetailPage() {
     }
     fetchTeam();
   }, [id]);
+
+  useEffect(() => {
+    if (compareOpen && teams.length === 0 && team) {
+      fetch('/api/teams').then(res => res.json()).then(allTeams => {
+        setTeams(allTeams.filter((t: any) => t.id !== team.id));
+      });
+    }
+  }, [compareOpen, teams.length, team]);
+
+  useEffect(() => {
+    if (!search) {
+      setFilteredTeams(teams);
+    } else {
+      setFilteredTeams(teams.filter(t =>
+        t.name.toLowerCase().includes(search.toLowerCase()) ||
+        t.country?.toLowerCase().includes(search.toLowerCase())
+      ));
+    }
+  }, [search, teams]);
+
+  useEffect(() => {
+    if (compareOpen && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPos({
+        left: rect.left,
+        top: rect.bottom + window.scrollY,
+        width: rect.width,
+      });
+    }
+  }, [compareOpen, search, filteredTeams.length]);
+
+  async function handleSelectTeam(t: any) {
+    setLoadingCompare(true);
+    // For now, just use the team object from /api/teams; could fetch /api/teams/[id] if needed
+    setSelectedTeam(t);
+    setLoadingCompare(false);
+  }
 
   if (loading) return <div className="text-center py-10">Loading...</div>;
   if (!team) return <div className="text-center py-10 text-red-500">Team not found.</div>;
@@ -49,20 +96,51 @@ export default function TeamDetailPage() {
   // Recent matches (last 5)
   const recentMatches = completedMatches.slice(-5).reverse();
 
+  // Compute stats for selectedTeam if present
+  let selectedStats = null;
+  if (selectedTeam) {
+    const matches = [...(selectedTeam.matchesAsTeam1 || []), ...(selectedTeam.matchesAsTeam2 || [])];
+    const completed = matches.filter((m: any) => m.status === 'completed' && typeof m.team1Score === 'number' && typeof m.team2Score === 'number');
+    const isTeam1 = (m: any) => m.team1.id === selectedTeam.id;
+    let wins = 0, losses = 0;
+    completed.forEach((m: any) => {
+      const teamScore = isTeam1(m) ? m.team1Score : m.team2Score;
+      const oppScore = isTeam1(m) ? m.team2Score : m.team1Score;
+      if (teamScore > oppScore) wins++;
+      else losses++;
+    });
+    const total = completed.length;
+    const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+    const recentForm = completed.slice(-5).map((m: any) => {
+      const teamScore = isTeam1(m) ? m.team1Score : m.team2Score;
+      const oppScore = isTeam1(m) ? m.team2Score : m.team1Score;
+      return teamScore > oppScore ? 'W' : 'L';
+    });
+    selectedStats = { total, wins, losses, winRate, recentForm };
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <NavigationBar />
       <div className="max-w-3xl mx-auto py-8 px-4">
         <Link href="/" className="text-orange-600 font-bold mb-4 inline-block">&larr; Home</Link>
-        <div className="flex items-center mb-4">
-          {team.logoUrl && (
-            <img src={team.logoUrl} alt={team.name} className="w-16 h-16 mr-4 rounded-full" />
-          )}
-          <div>
-            <h1 className="text-3xl font-bold text-secondary">{team.name}</h1>
-            <div className="text-gray-400 text-sm">{team.country}</div>
-            {team.ranking && <div className="text-xs text-green-400">World Ranking: #{team.ranking}</div>}
+        <div className="flex items-center mb-4 justify-between">
+          <div className="flex items-center">
+            {team.logoUrl && (
+              <img src={team.logoUrl} alt={team.name} className="w-16 h-16 mr-4 rounded-full" />
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-secondary">{team.name}</h1>
+              <div className="text-gray-400 text-sm">{team.country}</div>
+              {team.ranking && <div className="text-xs text-green-400">World Ranking: #{team.ranking}</div>}
+            </div>
           </div>
+          <button
+            className="px-4 py-2 rounded-lg bg-yellow-400 text-black font-bold shadow hover:bg-yellow-300 transition"
+            onClick={() => setCompareOpen(true)}
+          >
+            Compare
+          </button>
         </div>
         <div className="mb-8">
           <h2 className="text-xl font-bold mb-2 text-primary">Players</h2>
@@ -183,6 +261,93 @@ export default function TeamDetailPage() {
             ))}
           </div>
         </div>
+        <Modal open={compareOpen} onClose={() => { setCompareOpen(false); setSelectedTeam(null); setSearch(''); }}>
+          <h2 className="text-xl font-bold mb-4 text-primary">Compare Teams</h2>
+          <div className="mb-4 relative min-h-[120px] pb-4">
+            <input
+              ref={inputRef}
+              className="w-full bg-gray-900 text-white font-semibold px-4 py-2 rounded-lg border-2 border-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              placeholder="Search for a team..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+            />
+            {typeof window !== 'undefined' && search && filteredTeams.length > 0 && inputRef.current && ReactDOM.createPortal(
+              <div
+                className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-[9999] max-h-60 overflow-y-auto"
+                style={{
+                  position: 'absolute',
+                  left: dropdownPos.left,
+                  top: dropdownPos.top,
+                  width: dropdownPos.width,
+                }}
+              >
+                {filteredTeams.map(t => (
+                  <div
+                    key={t.id}
+                    className="px-4 py-2 cursor-pointer hover:bg-gray-800 text-white flex items-center gap-2"
+                    onClick={() => { handleSelectTeam(t); setSearch(''); }}
+                  >
+                    <span className="font-bold">{t.name}</span>
+                    <span className="text-xs text-gray-400">({t.country})</span>
+                  </div>
+                ))}
+              </div>,
+              document.body
+            )}
+            {typeof window !== 'undefined' && search && filteredTeams.length === 0 && inputRef.current && ReactDOM.createPortal(
+              <div
+                className="bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-[9999] px-4 py-2 text-gray-400"
+                style={{
+                  position: 'absolute',
+                  left: dropdownPos.left,
+                  top: dropdownPos.top,
+                  width: dropdownPos.width,
+                }}
+              >No teams found.</div>,
+              document.body
+            )}
+          </div>
+          {loadingCompare && <div className="text-center text-gray-400 py-4">Loading team...</div>}
+          {selectedTeam && !loadingCompare && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Team 1 */}
+              <div className="bg-surface rounded-xl p-4 border border-gray-700">
+                <div className="font-bold text-lg mb-2 text-yellow-400">{team.name}</div>
+                <div className="text-xs text-gray-400 mb-2">{team.country}</div>
+                <div className="mb-2 flex flex-col gap-1">
+                  <span><span className="font-bold">{completedMatches.length}</span> Matches</span>
+                  <span><span className="font-bold text-green-400">{wins}</span> Wins</span>
+                  <span><span className="font-bold text-red-400">{losses}</span> Losses</span>
+                  <span><span className="font-bold text-accent">{winRate}%</span> Win Rate</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">Recent Form:</div>
+                <div className="flex items-center gap-1 mt-1">
+                  {recentForm.map((r, i) => (
+                    <span key={i} className={`w-6 h-6 flex items-center justify-center rounded font-bold text-sm ${r === 'W' ? 'bg-green-700 text-green-200' : 'bg-red-800 text-red-200'}`}>{r}</span>
+                  ))}
+                </div>
+              </div>
+              {/* Team 2 */}
+              <div className="bg-surface rounded-xl p-4 border border-gray-700">
+                <div className="font-bold text-lg mb-2 text-yellow-400">{selectedTeam.name}</div>
+                <div className="text-xs text-gray-400 mb-2">{selectedTeam.country}</div>
+                <div className="mb-2 flex flex-col gap-1">
+                  <span><span className="font-bold">{selectedStats?.total ?? 0}</span> Matches</span>
+                  <span><span className="font-bold text-green-400">{selectedStats?.wins ?? 0}</span> Wins</span>
+                  <span><span className="font-bold text-red-400">{selectedStats?.losses ?? 0}</span> Losses</span>
+                  <span><span className="font-bold text-accent">{selectedStats?.winRate ?? 0}%</span> Win Rate</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">Recent Form:</div>
+                <div className="flex items-center gap-1 mt-1">
+                  {(selectedStats?.recentForm || []).map((r: string, i: number) => (
+                    <span key={i} className={`w-6 h-6 flex items-center justify-center rounded font-bold text-sm ${r === 'W' ? 'bg-green-700 text-green-200' : 'bg-red-800 text-red-200'}`}>{r}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div>
     </div>
   );

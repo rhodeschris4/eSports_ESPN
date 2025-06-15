@@ -70,7 +70,20 @@ model Player {
   teamId    String
   photoUrl  String?
   role      String?
-  // stats can be added as a JSON field or separate model in the future
+  stats     Json?    // HLTV player stats
+  // HLTV-specific fields
+  hltvId           Int?
+  age              Int?
+  countryCode      String?
+  twitter          String?
+  twitch           String?
+  facebook         String?
+  instagram        String?
+  hltvTeamId       Int?
+  hltvTeamName     String?
+  hltvTeams        Json?
+  hltvAchievements Json?
+  hltvNews         Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

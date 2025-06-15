@@ -3,10 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, context: { params: { id: string } }) {
+  const { params } = await context;
   try {
     const player = await prisma.player.findUnique({
       where: { id: params.id },
@@ -30,7 +28,8 @@ export async function GET(
         game = Object.entries(gameCounts as any).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
       }
     }
-    if (!game && player.team?.game) game = player.team.game;
+    // Use the stats from the database (imported from HLTV)
+    player.stats = player.stats || {};
     // Game-specific stats
     if (game === 'CS2') {
       player.stats = {
@@ -93,7 +92,7 @@ export async function GET(
     // Filter to matches where player was on the team at the time (simple version: current team)
     const filteredMatches = recentMatches.filter((m: any) => m.team1Id === player.teamId || m.team2Id === player.teamId).slice(0, 5);
     // Map to display info
-    player.recentMatches = filteredMatches.map((m: any) => {
+    (player as any).recentMatches = filteredMatches.map((m: any) => {
       const isTeam1 = m.team1Id === player.teamId;
       const teamScore = isTeam1 ? m.team1Score : m.team2Score;
       const oppScore = isTeam1 ? m.team2Score : m.team1Score;
